@@ -86,8 +86,10 @@ export default function CelpipTrainer() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  const answeredCount = Object.values(answers).filter(Boolean).length;
+
   const calculateScore = () => {
-    if (!drill) return 0;
+    if (!drill || !submitted) return 0;
     return drill.questions.reduce(
       (acc, q) => (answers[q.id] === q.correctAnswer ? acc + 1 : acc),
       0
@@ -102,6 +104,16 @@ export default function CelpipTrainer() {
     return "CLB 7 or below";
   };
 
+  const handleManualSubmit = () => {
+    if (answeredCount < 9) {
+      const confirmEarly = window.confirm(
+        `You have only answered ${answeredCount} of 9 questions. Submit anyway?`
+      );
+      if (!confirmEarly) return;
+    }
+    setSubmitted(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans">
       {/* Top Exam Control Bar */}
@@ -111,7 +123,7 @@ export default function CelpipTrainer() {
             CELPIP Reading Part 3 Simulator
           </h1>
           <p className="text-xs text-slate-400">
-            CLB 10–12 Psychometric Calibration
+            CLB 10–12 Strict Exam Mode
           </p>
         </div>
 
@@ -159,9 +171,9 @@ export default function CelpipTrainer() {
               Ready for CLB 10–12 Reading Part 3?
             </h2>
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-              Each session dynamically generates a 500+ word four-paragraph
-              passage with high-register paraphrasing and Option E (Not Given)
-              distractors under an official 10:00 countdown timer.
+              Complete all 9 matching statements under the 10:00 exam timer.
+              Answers, CLB score estimation, and trap explanations stay hidden
+              until you submit.
             </p>
             <button
               onClick={generateDrill}
@@ -200,25 +212,27 @@ export default function CelpipTrainer() {
               </div>
             </div>
 
-            {/* Right Pane: Questions & Trap Breakdown */}
+            {/* Right Pane: Questions (Strict Mode until Submit) */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
                 <h3 className="font-bold text-slate-800">
                   Match Statements (A–D, or E if Not Given)
                 </h3>
-                {submitted && (
-                  <div className="text-right">
-                    <span className="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-sm font-bold">
-                      Score: {calculateScore()} / 9 ({estimateCLB(calculateScore())})
-                    </span>
-                  </div>
+                {!submitted ? (
+                  <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
+                    Completed: {answeredCount} / 9
+                  </span>
+                ) : (
+                  <span className="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-sm font-bold">
+                    Score: {calculateScore()} / 9 ({estimateCLB(calculateScore())})
+                  </span>
                 )}
               </div>
 
               <div className="space-y-4">
                 {drill.questions.map((q) => {
                   const userAnswer = answers[q.id] || "";
-                  const isCorrect = userAnswer === q.correctAnswer;
+                  const isCorrect = submitted && userAnswer === q.correctAnswer;
 
                   return (
                     <div
@@ -256,6 +270,7 @@ export default function CelpipTrainer() {
                         </select>
                       </div>
 
+                      {/* Answers and explanations ONLY render after submitted === true */}
                       {submitted && (
                         <div className="mt-3 pt-3 border-t border-slate-200/80 text-xs space-y-1">
                           <div className="flex items-center justify-between">
@@ -286,10 +301,10 @@ export default function CelpipTrainer() {
 
               {!submitted && (
                 <button
-                  onClick={() => setSubmitted(true)}
+                  onClick={handleManualSubmit}
                   className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-sm transition cursor-pointer"
                 >
-                  Submit & Grade Exam
+                  Submit & Grade Exam ({answeredCount}/9 Answered)
                 </button>
               )}
             </div>
