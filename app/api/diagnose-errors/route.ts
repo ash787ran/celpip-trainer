@@ -3,30 +3,25 @@ import { NextResponse } from "next/server";
 
 const ai = new GoogleGenAI();
 
-const fullDiagnosticSchema: Schema = {
+const partDiagnosticSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    overallDiagnosis: {
+    coreErrorPattern: {
       type: Type.STRING,
       description:
-        "2-3 sentence executive summary of the test-taker's performance across Parts 1–4 and what separates their current score from CLB 11–12.",
+        "1-2 sentence diagnosis of the exact cognitive trap pattern causing mistakes in this part.",
     },
-    part3SkimAudit: {
+    skimOrReadingAudit: {
       type: Type.STRING,
       description:
-        "Specific audit of their Part 3 A-D skimming notes vs actual paragraph themes and whether skim gaps caused Part 3 mistakes.",
+        "For Part 3, audits their A-D skimming notes vs actual paragraph themes. For Parts 1, 2, or 4, audits their reading/inference approach.",
     },
-    weakestPartStrategy: {
-      type: Type.STRING,
-      description:
-        "Targeted tactical advice for the specific Reading Part (1, 2, 3, or 4) where they lost the most points.",
-    },
-    nextTimeChecklist: {
+    nextTimeRules: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "3 concrete, high-impact rules to follow on their next full Reading mock.",
+      description: "2 to 3 concrete rules to apply before answering on their next attempt.",
     },
-    part3MissedBreakdown: {
+    missedItemsBreakdown: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
@@ -40,59 +35,42 @@ const fullDiagnosticSchema: Schema = {
     },
   },
   required: [
-    "overallDiagnosis",
-    "part3SkimAudit",
-    "weakestPartStrategy",
-    "nextTimeChecklist",
-    "part3MissedBreakdown",
+    "coreErrorPattern",
+    "skimOrReadingAudit",
+    "nextTimeRules",
+    "missedItemsBreakdown",
   ],
 };
 
 export async function POST(req: Request) {
   try {
-    const { examData, userAnswers, skimNotes, scoresByPart } = await req.json();
-
-    const part3 = examData.part3;
-    const part3Missed = part3
-      ? part3.questions
-          .filter((q: any) => userAnswers.part3?.[q.id] !== q.correctAnswer)
-          .map((q: any) => ({
-            id: q.id,
-            statement: q.statement,
-            userAnswer: userAnswers.part3?.[q.id] || "Blank",
-            correctAnswer: q.correctAnswer,
-            trapType: q.trapType,
-            proof: q.explanation,
-          }))
-      : [];
+    const { partNumber, partData, userAnswers, skimNotes, score, total } =
+      await req.json();
 
     const prompt = `
       You are an elite CELPIP Reading CLB 12 psychometric coach.
-      Analyze a candidate's completed 38-question CELPIP Reading Mock Test.
+      Analyze a student's completed CELPIP Reading Part ${partNumber} drill (Score: ${score}/${total}).
 
-      SCORES BY PART:
-      - Part 1 (Correspondence): ${scoresByPart.part1} / 11
-      - Part 2 (Apply a Diagram): ${scoresByPart.part2} / 8
-      - Part 3 (Reading for Information): ${scoresByPart.part3} / 9
-      - Part 4 (Reading for Viewpoints): ${scoresByPart.part4} / 10
-      - Total: ${scoresByPart.total} / 38
+      PART ${partNumber} CONTENT & QUESTIONS:
+      ${JSON.stringify(partData)}
 
-      PART 3 PARAGRAPHS:
-      ${part3 ? JSON.stringify(part3.paragraphs) : "N/A"}
+      STUDENT ANSWERS:
+      ${JSON.stringify(userAnswers)}
 
-      STUDENT'S PART 3 SKIMMING NOTES:
-      A: ${skimNotes?.A || "(Skipped)"}
-      B: ${skimNotes?.B || "(Skipped)"}
-      C: ${skimNotes?.C || "(Skipped)"}
-      D: ${skimNotes?.D || "(Skipped)"}
+      ${
+        partNumber === 3
+          ? `STUDENT'S PART 3 SKIMMING NOTES (A-D): ${JSON.stringify(skimNotes)}`
+          : ""
+      }
 
-      PART 3 MISSED QUESTIONS:
-      ${JSON.stringify(part3Missed, null, 2)}
-
-      Provide a sharp, honest, high-value CLB 12 coaching diagnosis:
-      1. Identify why they lost points across the 4 parts.
-      2. Audit their Part 3 A-D skim notes against the actual text.
-      3. Give targeted strategies for their weakest part and every missed Part 3 trap.
+      TASK:
+      1. Identify the exact cognitive trap pattern behind any missed questions (or if ${score}/${total} is a perfect score, highlight the hardest traps they dodged).
+      2. ${
+        partNumber === 3
+          ? "Audit their Part 3 A-D skimming notes against each paragraph's real theme and identify if any skim gap led to a wrong match."
+          : "Evaluate how well they handled tone, inference, and paraphrasing in this section."
+      }
+      3. Provide 2-3 sharp, tactical rules for their next attempt and a per-question breakdown for every wrong answer.
     `;
 
     const response = await ai.models.generateContent({
@@ -100,15 +78,15 @@ export async function POST(req: Request) {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: fullDiagnosticSchema,
-        temperature: 0.4,
-        thinkingConfig: { thinkingBudget: 0 },
+        responseSchema: partDiagnosticSchema,
+        thinkingConfig: { thinkingLevel: "LOW" as any },
       },
     });
 
-    return NextResponse.json(JSON.parse(response.text!));
+    if (!response.text) throw new Error("Empty diagnostic response");
+    return NextResponse.json(JSON.parse(response.text));
   } catch (error: any) {
-    console.error("Full diagnostic error:", error);
+    console.error("Diagnostic error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to generate diagnosis" },
       { status: 500 }
