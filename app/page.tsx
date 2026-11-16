@@ -183,9 +183,6 @@ export default function FullCelpipReadingSimulator() {
 
     // Generate Part 1 immediately, and pre-fetch Parts 2, 3, 4 in parallel
     await fetchSinglePart(1);
-    fetchSinglePart(2);
-    fetchSinglePart(3);
-    fetchSinglePart(4);
   };
 
   const formatTime = (sec: number) => {
