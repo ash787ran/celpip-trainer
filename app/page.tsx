@@ -12,6 +12,7 @@ interface Question {
 
 interface DrillData {
   title: string;
+  archetype?: string;
   paragraphs: {
     A: string;
     B: string;
@@ -123,14 +124,14 @@ export default function CelpipTrainer() {
             CELPIP Reading Part 3 Simulator
           </h1>
           <p className="text-xs text-slate-400">
-            CLB 10–12 Strict Exam Mode
+            CLB 10–12 Strict Exam Mode • 4-Archetype Engine
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <input
             type="text"
-            placeholder="Optional topic (e.g., Arctic Shipping)"
+            placeholder="Optional topic (e.g., EV Batteries)"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             className="px-3 py-1.5 rounded bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
@@ -171,9 +172,10 @@ export default function CelpipTrainer() {
               Ready for CLB 10–12 Reading Part 3?
             </h2>
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-              Complete all 9 matching statements under the 10:00 exam timer.
-              Answers, CLB score estimation, and trap explanations stay hidden
-              until you submit.
+              Rotates across all 4 official CELPIP archetypes (Wildlife &amp;
+              Landscapes, Canadian History, Applied Science &amp; Tech, and
+              Culture) with shuffled CLB 10–12 paraphrasing and Option E traps.
+              Answers remain hidden until you submit.
             </p>
             <button
               onClick={generateDrill}
@@ -188,7 +190,7 @@ export default function CelpipTrainer() {
           <div className="text-center py-24">
             <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-slate-600 font-medium">
-              Constructing 500+ word passage and engineering distractors...
+              Constructing official-style passage and CLB 10–12 distractors...
             </p>
           </div>
         )}
@@ -197,9 +199,16 @@ export default function CelpipTrainer() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* Left Pane: Reading Passage */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:sticky lg:top-24 max-h-[82vh] overflow-y-auto">
-              <h2 className="text-xl font-bold text-slate-900 mb-4 pb-3 border-b border-slate-200">
-                {drill.title}
-              </h2>
+              <div className="mb-4 pb-3 border-b border-slate-200">
+                <h2 className="text-xl font-bold text-slate-900">
+                  {drill.title}
+                </h2>
+                {submitted && drill.archetype && (
+                  <span className="inline-block mt-1.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded">
+                    Archetype: {drill.archetype}
+                  </span>
+                )}
+              </div>
               <div className="space-y-5 text-slate-800 leading-relaxed text-[15px]">
                 {(["A", "B", "C", "D"] as const).map((letter) => (
                   <div key={letter} className="flex gap-3">
@@ -270,7 +279,6 @@ export default function CelpipTrainer() {
                         </select>
                       </div>
 
-                      {/* Answers and explanations ONLY render after submitted === true */}
                       {submitted && (
                         <div className="mt-3 pt-3 border-t border-slate-200/80 text-xs space-y-1">
                           <div className="flex items-center justify-between">
